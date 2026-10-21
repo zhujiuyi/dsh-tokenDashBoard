@@ -1,0 +1,10 @@
+# @zhujiuyi/dsh-token-dashboard — the Host row this bundle inserts.
+#
+# One row: the Host half that scans the local session logs and serves
+# GET /api/token-dashboard/snapshot to the browser half. It declares no Config:
+# every value it needs is derived (Harness home, session logs, the profile's own
+# llm routes), so there is nothing for a user to edit here.
+- insert:
+    - id: token-dashboard
+      name: "@zhujiuyi/dsh-token-dashboard"
+      config: {}

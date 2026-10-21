@@ -1,0 +1,71 @@
+{
+  "name": "@zhujiuyi/dsh-token-dashboard",
+  "version": "0.1.0",
+  "private": false,
+  "description": "DeepSeek Harness plugin: a Token usage dashboard in the sidebar — daily totals, per-provider routes and per-session consumption, including archived and deleted sessions. · DSH 插件：侧栏 Token 用量看板，按天、供应商渠道与会话统计，含已归档与已删除会话。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "src/",
+    "client/",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "docs/images/",
+    "screenshots.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "check": "node --check index.js && node --check client/client.js",
+    "test:client": "node test/client-selfcheck.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "token",
+    "usage",
+    "dashboard",
+    "analytics"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhujiuyi/dsh-tokenDashBoard.git"
+  },
+  "homepage": "https://github.com/zhujiuyi/dsh-tokenDashBoard#readme",
+  "bugs": {
+    "url": "https://github.com/zhujiuyi/dsh-tokenDashBoard/issues"
+  },
+  "author": {
+    "name": "zhujiuyi"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

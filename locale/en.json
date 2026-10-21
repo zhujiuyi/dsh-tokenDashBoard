@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Token Usage",
+    "description": "A Token consumption dashboard in the sidebar: daily totals, per-provider routes and per-session usage across the whole local history, including archived and deleted sessions, with subagent usage folded into its parent session."
+  }
+}
