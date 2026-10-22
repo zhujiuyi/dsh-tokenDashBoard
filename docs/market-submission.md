@@ -1,4 +1,10 @@
-# 插件市场上架：待提交 PR（仓库满 1 天后）
+# 插件市场上架
+
+**状态：PR 已提交，CI 通过，等待维护者合并**
+
+- PR: https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/8786
+- CI: `check` = SUCCESS（2026-10-23 02:10 +08）
+- 备注：首次跑 CI 时上游 main 上 `FrogFlaying__dsh-desktop-organizer.yml` 有未加引号的冒号导致解析失败，维护者随后修好；已把分支 rebase 到修复后的 main 重跑，现全绿。
 
 准备时间：2026-10-22 01:40 +08
 仓库创建时间：2026-10-22 01:22 +08 → **可提交时间：2026-10-23 01:22 +08 之后**
