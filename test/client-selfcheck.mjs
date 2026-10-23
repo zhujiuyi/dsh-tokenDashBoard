@@ -324,6 +324,21 @@ async function renderPage(component, props) {
 	return runPasses(component, props, { host: [], text: '', cleanups: [] })
 }
 
+/** Does this rendered subtree contain an element with the given class? */
+function containsClass(node, className) {
+	if (node === null || node === undefined || typeof node !== 'object') return false
+	if (Array.isArray(node)) return node.some((child) => containsClass(child, className))
+	const props = node.props || {}
+	const own = String(props.className || '')
+	if (own.split(/\s+/).includes(className)) return true
+	// Function components hold their markup behind node.type; render them so a
+	// membership check means the same thing as in the flattened host list.
+	if (typeof node.type === 'function') return containsClass(node.type(props), className)
+	if (node.children !== undefined && containsClass(node.children, className)) return true
+	if (props.children !== undefined && containsClass(props.children, className)) return true
+	return false
+}
+
 function classes(host) {
 	return host.map((node) => String((node.props && node.props.className) || ''))
 }
@@ -499,6 +514,25 @@ const railIndex = data.host.findIndex((node) => String(node.props && node.props.
 const heatIndex = data.host.findIndex((node) => String(node.props && node.props.className || '').includes('tdb-heat-grid'))
 assert.ok(railIndex > -1 && railIndex < heatIndex, 'summary comes before the heatmap')
 ok('heatmap summary: under the overview card, grid centred')
+
+// The summary strip repeats nothing from the overview card: the all-time peak is
+// reported above, so the second figure is today's consumption instead.
+assert.ok(data.text.includes('今日用量'), 'summary shows today usage')
+assert.ok(!data.text.includes('单日最高'), 'summary no longer repeats the all-time peak')
+assert.ok(data.text.includes('当日 0 点到此刻'), 'today figure carries its window')
+ok('summary strip: active days / today / last 30 days')
+
+// Each panel is one rounded card, and the summary strip lives inside the
+// activity card rather than floating above it.
+const sectionCount = countClass(data.host, 'tdb-section')
+assert.equal(sectionCount, 3, 'activity + providers + sessions are cards')
+const cardCss = appendedStyles[0].textContent
+assert.ok(cardCss.includes('padding:22px 24px 24px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,14px)'), 'cards have a rounded border')
+const activityCard = data.host.find((node) => node.type === 'section' && String(node.props && node.props['aria-labelledby'] || '') === 'tdb-heat-title')
+assert.ok(activityCard, 'activity card rendered')
+assert.ok(containsClass(activityCard, 'tdb-overview-rail'), 'strip renders inside the activity card')
+assert.ok(containsClass(activityCard, 'tdb-heat-grid'), 'heatmap renders inside the same card')
+ok('panel framing: one rounded card per area, strip inside the activity card')
 
 assert.ok(present(data.host, 'tdb-heat-grid'))
 assert.equal(countClass(data.host, 'tdb-hcell'), 365, 'one cell per day for 365 days')

@@ -83,7 +83,8 @@ window.__ModuleLoader__.load({
 			heatModes: '{m}热力图',
 			railActive: '活跃天数',
 			railActiveNote: '共计 365 天',
-			railPeak: '单日最高',
+			railToday: '今日用量',
+			railTodayNote: '当日 0 点到此刻',
 			rail30: '近 30 天合计',
 			rail30Note: '含全部渠道',
 			legendLess: '少',
@@ -192,7 +193,8 @@ window.__ModuleLoader__.load({
 			heatModes: '{m} heatmap',
 			railActive: 'Active days',
 			railActiveNote: 'of 365 days',
-			railPeak: 'Busiest day',
+			railToday: 'Used today',
+			railTodayNote: 'since local midnight',
 			rail30: 'Last 30 days',
 			rail30Note: 'all channels',
 			legendLess: 'Less',
@@ -303,7 +305,7 @@ window.__ModuleLoader__.load({
 			'.tdb-error .tdb-btn{height:26px;background:transparent;border-color:currentColor;color:inherit}',
 
 			// ── overview ────────────────────────────────────────────────────
-			'.tdb-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:28px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,14px);background:var(--dsw-alias-bg-layer-1);overflow:hidden}',
+			'.tdb-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:24px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,14px);background:var(--dsw-alias-bg-layer-1);overflow:hidden}',
 			'.tdb-stat{padding:18px 20px;min-width:0}',
 			'.tdb-stat + .tdb-stat{border-left:1px solid var(--dsw-alias-border-l2)}',
 			'.tdb-stat-v{display:block;font-size:clamp(19px,2vw,23px);font-weight:600;letter-spacing:-.015em;line-height:1.3;white-space:nowrap;font-variant-numeric:tabular-nums}',
@@ -314,14 +316,16 @@ window.__ModuleLoader__.load({
 			// It sits directly under the overview card (the page's dead space there
 			// was worth using), not beside the heatmap — the grid is only 7 rows tall,
 			// so a vertical rail would leave a tall empty column next to it.
-			'.tdb-overview-rail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px 26px;align-items:end;margin-top:18px;padding:0 4px}',
+			'.tdb-overview-rail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 20px;align-items:end;margin:0 0 22px;padding:0 2px 18px;text-align:center;border-bottom:1px solid var(--dsw-alias-border-l2)}',
 			'.tdb-rail-k{font-size:11.5px;color:var(--dsw-alias-label-tertiary)}',
 			'.tdb-rail-v{margin-top:3px;font-size:17px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;font-variant-numeric:tabular-nums}',
 			'.tdb-rail-note{margin-top:2px;font-size:11px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}',
+			'.tdb-overview-rail .tdb-heat-legend{justify-self:center;align-self:end}',
 
 			// ── sections ────────────────────────────────────────────────────
-			'.tdb-section{margin-top:44px}',
-			'.tdb-sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:18px}',
+			'.tdb-section{margin-top:22px;padding:22px 24px 24px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,14px);background:var(--dsw-alias-bg-layer-1)}',
+			'.tdb-section:first-of-type{margin-top:0}',
+			'.tdb-sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:16px}',
 			'.tdb-sec-title{margin:0;font-size:16.5px;font-weight:600;letter-spacing:-.01em}',
 			'.tdb-sec-sub{margin:5px 0 0;font-size:12.5px;color:var(--dsw-alias-label-tertiary)}',
 			'.tdb-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}',
@@ -456,11 +460,11 @@ window.__ModuleLoader__.load({
 			// ── keyframes + media ──────────────────────────────────────────
 			'@keyframes tdb-spin{to{transform:rotate(360deg)}}',
 			'@media (max-width:1100px){.tdb-root{--tdb-cell:11px}}',
-			'@media (max-width:1024px){.tdb-page{padding:26px 24px 44px}.tdb-overview-rail{grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:9px 18px}.tdb-sess-head,.tdb-sess-row{grid-template-columns:minmax(200px,1.6fr) 96px 118px 60px minmax(150px,1fr) 92px;gap:13px}}',
-			'@media (max-width:900px){.tdb-overview-rail{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.tdb-overview-rail .tdb-heat-legend{grid-column:1 / -1;justify-self:start}.tdb-chart-y{height:204px;width:50px}.tdb-chart-plot{height:204px}}',
+			'@media (max-width:1024px){.tdb-page{padding:26px 24px 44px}.tdb-overview-rail{grid-template-columns:repeat(4,minmax(0,1fr));gap:9px 14px}.tdb-sess-head,.tdb-sess-row{grid-template-columns:minmax(200px,1.6fr) 96px 118px 60px minmax(150px,1fr) 92px;gap:13px}}',
+			'@media (max-width:900px){.tdb-overview-rail{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}.tdb-overview-rail .tdb-heat-legend{grid-column:1 / -1;justify-self:center}.tdb-chart-y{height:204px;width:50px}.tdb-chart-plot{height:204px}}',
 			'@media (max-width:860px){.tdb-stats{grid-template-columns:1fr 1fr}.tdb-stat{padding:15px 17px}.tdb-stat + .tdb-stat{border-left:0}.tdb-stat:nth-child(2n){border-left:1px solid var(--dsw-alias-border-l2)}.tdb-stat:nth-child(n+3){border-top:1px solid var(--dsw-alias-border-l2)}.tdb-stat:last-child{grid-column:1 / -1;border-left:0}}',
 			'@media (max-width:780px){.tdb-sess-head{display:none}.tdb-sess-row{grid-template-columns:1fr auto;grid-template-areas:"name status" "prov last" "tokens tokens";gap:8px 12px;padding:14px 2px}.tdb-c-session{grid-area:name}.tdb-c-status{grid-area:status;justify-self:end}.tdb-c-prov{grid-area:prov;align-self:center}.tdb-c-last{grid-area:last;align-self:center}.tdb-c-tokens{grid-area:tokens}.tdb-c-msgs{display:none}.tdb-sess-name{white-space:normal;overflow:visible}.tdb-tok-cap{display:block;margin-bottom:4px;font-size:11px;color:var(--dsw-alias-label-tertiary)}}',
-			'@media (max-width:720px){.tdb-h1{font-size:23px}.tdb-lede{font-size:13px}.tdb-section{margin-top:38px}.tdb-chart-y{height:178px;width:46px}.tdb-chart-plot{height:178px}.tdb-table .hide-sm{display:none}.tdb-share-cell{min-width:110px}}',
+			'@media (max-width:720px){.tdb-h1{font-size:23px}.tdb-lede{font-size:13px}.tdb-section{margin-top:18px;padding:18px 16px 20px}.tdb-chart-y{height:178px;width:46px}.tdb-chart-plot{height:178px}.tdb-table .hide-sm{display:none}.tdb-share-cell{min-width:110px}}',
 			'@media (max-width:600px){.tdb-page{padding:20px 16px 40px}.tdb-sec-tools{width:100%}.tdb-search{width:100%}.tdb-seg{flex-wrap:wrap}.tdb-chart-x span:nth-child(even){display:none}.tdb-stats{grid-template-columns:1fr}.tdb-stat + .tdb-stat{border-left:0;border-top:1px solid var(--dsw-alias-border-l2)}.tdb-stat:last-child{grid-column:auto}.tdb-overview-rail{grid-template-columns:1fr 1fr}}',
 			'@media (prefers-reduced-motion:reduce){.tdb-root *,.tdb-root *::before,.tdb-root *::after{transition:none!important;animation:none!important}.tdb-hcell:hover{transform:none}}',
 		].join('')
@@ -903,7 +907,6 @@ window.__ModuleLoader__.load({
 			} else {
 				body = [
 					h(SummaryStats, { key: 'stats', f, snapshot }),
-					h(OverviewRail, { key: 'rail', f, snapshot }),
 					h(HeatSection, { key: 'heat', f, snapshot, tip }),
 					h(ProvidersSection, { key: 'prov', f, snapshot, tip }),
 					h(SessionsSection, { key: 'sess', f, snapshot }),
@@ -1167,6 +1170,7 @@ window.__ModuleLoader__.load({
 			labels)
 
 			return h('section', { className: 'tdb-section', 'aria-labelledby': 'tdb-heat-title' },
+				h(OverviewRail, { f, snapshot }),
 				h('div', { className: 'tdb-sec-head' },
 					h('div', null,
 						h('h2', { className: 'tdb-sec-title', id: 'tdb-heat-title' }, f.t('heatTitle')),
@@ -1195,11 +1199,11 @@ window.__ModuleLoader__.load({
 			const model = React.useMemo(() => buildHeatModel(snapshot), [snapshot])
 
 			const activeCount = model.cells.reduce((count, cell) => (cell.tokens > 0 ? count + 1 : count), 0)
-			let peakCell = null
-			for (const cell of model.cells) {
-				if (peakCell === null || cell.tokens > peakCell.tokens) peakCell = cell
-			}
 			const last30 = model.cells.slice(-30).reduce((sum, cell) => sum + cell.tokens, 0)
+			// Today's own total: the overview strip above already reports the
+			// all-time peak, so repeating "busiest day" here wasted a slot. Today's
+			// consumption is a different question and the one this row can answer.
+			const todayCell = model.cells[model.cells.length - 1]
 
 			return h('aside', { className: 'tdb-overview-rail', 'aria-label': f.t('heatAria') },
 				h('div', null,
@@ -1207,9 +1211,10 @@ window.__ModuleLoader__.load({
 					h('div', { className: 'tdb-rail-v' }, f.tf('dayWord', { n: f.int(activeCount) })),
 					h('div', { className: 'tdb-rail-note' }, f.t('railActiveNote'))),
 				h('div', null,
-					h('div', { className: 'tdb-rail-k' }, f.t('railPeak')),
-					h('div', { className: 'tdb-rail-v' }, f.tok(peakCell === null ? 0 : peakCell.tokens)),
-					h('div', { className: 'tdb-rail-note' }, peakCell === null ? '—' : f.dateFull(peakCell.date) + ' · ' + f.weekday(peakCell.date))),
+					h('div', { className: 'tdb-rail-k' }, f.t('railToday')),
+					h('div', { className: 'tdb-rail-v', title: f.raw(todayCell === undefined ? 0 : todayCell.tokens) },
+						f.tok(todayCell === undefined ? 0 : todayCell.tokens)),
+					h('div', { className: 'tdb-rail-note' }, f.t('railTodayNote'))),
 				h('div', null,
 					h('div', { className: 'tdb-rail-k' }, f.t('rail30')),
 					h('div', { className: 'tdb-rail-v' }, f.tok(last30)),
