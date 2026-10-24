@@ -23,7 +23,7 @@ function usage(input, output = 0, cacheRead = 0, cacheWrite) {
  * @param {string} [options.parentSession]
  * @param {number} [options.delegationDepth]
  * @param {string} [options.provider]
- * @param {Array<{ time: number, tokens: number, turn?: number, turnMs?: number, title?: string, userOnly?: boolean }>} options.entries
+ * @param {Array<{ time: number, tokens: number, output?: number, turn?: number, turnMs?: number, title?: string, userOnly?: boolean, decodeMs?: number }>} options.entries
  */
 function session(options) {
   const entries = []
@@ -48,10 +48,28 @@ function session(options) {
     }
     entries.push({ type: 'user/message', time: entry.time, data: { role: 'user', content: [] } })
     entries.push({ type: 'turn/start', time: entry.time, data: { turn: entry.turn ?? turn } })
+    entries.push({ type: 'step/start', time: entry.time - (entry.decodeMs ?? 0), data: { turn: entry.turn ?? turn, step: 1 } })
     entries.push({
       type: 'assistant/message',
       time: entry.time,
-      data: { turn: entry.turn ?? turn, step: 1, usage: usage(entry.tokens) },
+      data: {
+        turn: entry.turn ?? turn,
+        step: 1,
+        usage: usage(entry.tokens - (entry.output ?? 0), entry.output ?? 0),
+        ...(entry.decodeMs === undefined
+          ? {}
+          : {
+              stream: [
+                {
+                  type: 'reasoning-chunks',
+                  time0: entry.time - entry.decodeMs,
+                  index: 0,
+                  dt: [0, 0],
+                  texts: ['a', 'b', 'c'],
+                },
+              ],
+            }),
+      },
     })
     if (entry.turnMs !== undefined) {
       entries.push({ type: 'turn/end', time: entry.time + entry.turnMs, data: { turn: entry.turn ?? turn } })
@@ -84,6 +102,48 @@ function workspace({ archived = [], active = {}, titles = {} } = {}) {
 
 const NOW = at(2026, 5, 20, 12)
 const TODAY = localDay(NOW)
+
+test('provider rows report average streaming speed from first token to message', () => {
+  // Two timed messages on the same route: 100 output tokens over 2s and 300 over
+  // 2s, so 400 tokens over 4s -> 100 tok/s. A third, untimed message must not
+  // dilute the ratio (it has no reliable start, so it is excluded entirely).
+  const timed = session({
+    id: 's1',
+    provider: 'opencode-go',
+    entries: [
+      { time: at(2026, 5, 1, 10), tokens: 1000, output: 100, decodeMs: 2000 },
+      { time: at(2026, 5, 1, 11), tokens: 3000, output: 300, decodeMs: 2000 },
+      { time: at(2026, 5, 1, 12), tokens: 500 },
+    ],
+  })
+  const snapshot = buildSnapshot({
+    sessions: [timed],
+    workspace: workspace({ active: { s1: {} } }),
+    configuredProviders: [{ id: 'opencode-go', name: 'opencode-go' }],
+    now: NOW,
+  })
+  const row = snapshot.providers.find((provider) => provider.id === 'opencode-go')
+  assert.ok(row, 'provider row exists')
+  assert.equal(row.outputTokens, 400, 'only timed output counts')
+  assert.equal(row.decodeMs, 4000)
+  assert.equal(row.tokensPerSecond, 100)
+
+  // A route with usage but no timing reports null rather than a made-up number.
+  const untimed = session({
+    id: 's2',
+    provider: 'opendesign',
+    entries: [{ time: at(2026, 5, 2, 10), tokens: 900 }],
+  })
+  const second = buildSnapshot({
+    sessions: [untimed],
+    workspace: workspace({ active: { s2: {} } }),
+    configuredProviders: [{ id: 'opendesign', name: 'opendesign' }],
+    now: NOW,
+  })
+  const other = second.providers.find((provider) => provider.id === 'opendesign')
+  assert.equal(other.decodeMs, 0)
+  assert.equal(other.tokensPerSecond, null, 'no timing evidence means no figure')
+})
 
 test('buildSnapshot emits the SPEC contract version and empty shape', () => {
   const snapshot = buildSnapshot({

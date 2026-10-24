@@ -126,6 +126,10 @@ export function buildSnapshot(options = {}) {
   const providerDayTotals = new Map()
   /** @type {Map<string, number>} */
   const providerTotals = new Map()
+  /** @type {Map<string, number>} provider -> decode milliseconds, merged across sessions */
+  const providerDecodeMs = new Map()
+  /** @type {Map<string, number>} provider -> output tokens of timed messages */
+  const providerOutputTokens = new Map()
   /** @type {Map<string, Set<string>>} */
   const providerSessions = new Map()
   /** @type {Set<string>} */
@@ -174,6 +178,12 @@ export function buildSnapshot(options = {}) {
     // a usage figure without a timestamp still counts towards its provider.
     for (const [providerId, tokens] of Object.entries(row.byProvider)) {
       providerTotals.set(providerId, (providerTotals.get(providerId) ?? 0) + numberOr0(tokens))
+    }
+    for (const [providerId, ms] of Object.entries(row.providerDecodeMs ?? {})) {
+      providerDecodeMs.set(providerId, (providerDecodeMs.get(providerId) ?? 0) + numberOr0(ms))
+    }
+    for (const [providerId, tokens] of Object.entries(row.providerOutputTokens ?? {})) {
+      providerOutputTokens.set(providerId, (providerOutputTokens.get(providerId) ?? 0) + numberOr0(tokens))
     }
     // A provider can be routed to without ever producing a usage figure (a
     // failed request, a fallback that was retried elsewhere). It still appeared
@@ -230,6 +240,12 @@ export function buildSnapshot(options = {}) {
       lastDay: daysOfProvider.length > 0 ? daysOfProvider[daysOfProvider.length - 1] : null,
       peak,
       sessionCount: providerSessions.get(identity.id)?.size ?? 0,
+      // Average streaming speed, same definition as the transcript's
+      // tokens/second: output tokens over the span from each step's first
+      // request to its assembled message. null when nothing was timed.
+      decodeMs: providerDecodeMs.get(identity.id) ?? 0,
+      outputTokens: providerOutputTokens.get(identity.id) ?? 0,
+      tokensPerSecond: speedOf(providerOutputTokens.get(identity.id) ?? 0, providerDecodeMs.get(identity.id) ?? 0),
     }
   })
   providerRows.sort((left, right) => right.total - left.total || compareText(left.id, right.id))
@@ -317,6 +333,10 @@ function buildSessionRow(group, workspace, titles) {
   const activeDays = new Set()
   /** @type {Set<string>} every provider id this row saw, usage or not */
   const providersSeen = new Set()
+  /** @type {Record<string, number>} provider -> decode milliseconds */
+  const decodeMsByProvider = {}
+  /** @type {Record<string, number>} provider -> timed output tokens */
+  const outputTokensByProvider = {}
 
   for (const member of members) {
     total += numberOr0(member.total)
@@ -325,6 +345,12 @@ function buildSessionRow(group, workspace, titles) {
     longestTurnMs = Math.max(longestTurnMs, numberOr0(member.longestTurnMs))
     for (const providerId of member.providersSeen ?? []) {
       if (typeof providerId === 'string' && providerId !== '') providersSeen.add(providerId)
+    }
+    for (const [providerId, ms] of Object.entries(member.providerDecodeMs ?? {})) {
+      decodeMsByProvider[providerId] = (decodeMsByProvider[providerId] ?? 0) + numberOr0(ms)
+    }
+    for (const [providerId, tokens] of Object.entries(member.providerOutputTokens ?? {})) {
+      outputTokensByProvider[providerId] = (outputTokensByProvider[providerId] ?? 0) + numberOr0(tokens)
     }
     if (member.firstAt !== null && member.firstAt !== undefined) {
       firstAt = firstAt === null ? member.firstAt : Math.min(firstAt, member.firstAt)
@@ -410,6 +436,8 @@ function buildSessionRow(group, workspace, titles) {
     byDay: sparseByDay,
     byProvider: sparseByProvider,
     // Internal, stripped before the snapshot leaves `buildSnapshot`:
+    providerDecodeMs: decodeMsByProvider,
+    providerOutputTokens: outputTokensByProvider,
     dayProviders: sparseDayProviders,
     hoursByDay,
     activeDays: [...activeDays].sort(),
@@ -574,6 +602,14 @@ function mapToObject(map) {
 /** @returns {WorkspaceState} */
 function emptyWorkspaceState() {
   return { ok: false, archived: new Set(), sessions: new Map(), warnings: [], signature: null }
+}
+
+/** Tokens per second from a token count and a duration, or null when unusable. */
+function speedOf(tokens, ms) {
+  const count = numberOr0(tokens)
+  const duration = numberOr0(ms)
+  if (!(count > 0) || !(duration > 0)) return null
+  return Math.round((count / (duration / 1000)) * 10) / 10
 }
 
 /** @param {unknown} value @returns {boolean} */

@@ -110,6 +110,9 @@ window.__ModuleLoader__.load({
 			colChannel: '渠道',
 			colUsage: '用量',
 			colAvg: '日均',
+			colQuickest: '平均输出速度',
+			colQuickestHint: '该渠道所有已计量回复的平均值：输出 token ÷（首个 token 到回复完成的时间）',
+			tps: '{n} tok/s',
 			colPeak: '单日峰值',
 			colShare: '占比',
 			unused: '未使用',
@@ -220,6 +223,9 @@ window.__ModuleLoader__.load({
 			colChannel: 'Channel',
 			colUsage: 'Usage',
 			colAvg: 'Daily avg',
+			colQuickest: 'Avg speed',
+			colQuickestHint: 'Mean over this route\'s timed replies: output tokens ÷ (first token → completion)',
+			tps: '{n} tok/s',
 			colPeak: 'Peak day',
 			colShare: 'Share',
 			unused: 'unused',
@@ -405,6 +411,7 @@ window.__ModuleLoader__.load({
 			'.tdb-share-track{flex:1 1 auto;height:4px;border-radius:2px;background:var(--tdb-track);overflow:hidden;min-width:56px}',
 			'.tdb-share-fill{display:block;height:100%;border-radius:2px}',
 			'.tdb-share-pct{width:46px;text-align:right;font-size:12px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
+			'.tdb-dim{color:var(--dsw-alias-label-tertiary)}',
 			'.tdb-unused{margin-left:8px;padding:1px 6px;border-radius:5px;font-size:10.5px;color:var(--dsw-alias-label-tertiary);border:1px solid var(--dsw-alias-border-l2);background:var(--tdb-tint);white-space:nowrap}',
 
 			// ── session list ────────────────────────────────────────────────
@@ -591,6 +598,13 @@ window.__ModuleLoader__.load({
 				return Math.round(number).toLocaleString(locale)
 			}
 
+			/** One decimal, locale-grouped: 180.8, 1,204.3. */
+			const num1 = (value) => {
+				const number = asNumber(value)
+				if (!(number > 0)) return '0'
+				return number.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+			}
+
 			/** The raw token count, grouped, for the detail under an exact figure. */
 			const raw = (value) => Math.round(asNumber(value)).toLocaleString(locale)
 
@@ -660,7 +674,7 @@ window.__ModuleLoader__.load({
 				return seconds + tr(t, 'durSecond', 's')
 			}
 
-			return { lang, t: (key, fallback) => tr(t, key, fallback), tf: (key, vars) => tf(t, key, vars), int, tok, tokExact, raw, dur, dateFull, dateTime, weekday, monthLabel, md }
+			return { lang, t: (key, fallback) => tr(t, key, fallback), tf: (key, vars) => tf(t, key, vars), int, tok, tokExact, raw, num1, dur, dateFull, dateTime, weekday, monthLabel, md }
 		}
 
 		/** Percent with one decimal; keeps tiny shares visible instead of "0.0". */
@@ -1246,6 +1260,11 @@ window.__ModuleLoader__.load({
 					name: typeof row.name === 'string' && row.name !== '' ? row.name : row.id,
 					configured: row.configured === true,
 					total: asNumber(row.total),
+					// Average streaming speed over every timed message this route
+					// served; null when the logs carry no timing for it.
+					tokensPerSecond: typeof row.tokensPerSecond === 'number' && row.tokensPerSecond > 0
+						? row.tokensPerSecond
+						: null,
 				})
 			}
 			const extras = new Set()
@@ -1573,6 +1592,10 @@ window.__ModuleLoader__.load({
 							unused ? h('span', { className: 'tdb-unused' }, f.t('unused')) : null)),
 					h('td', { className: 'num' }, f.tok(total)),
 					h('td', { className: 'num hide-sm' }, f.tok(average)),
+					h('td', { className: 'num hide-sm' },
+						provider.tokensPerSecond === null
+							? h('span', { className: 'tdb-dim' }, '—')
+							: h('span', { title: f.t('colQuickestHint') }, f.tf('tps', { n: f.num1(provider.tokensPerSecond) }))),
 					h('td', { className: 'num hide-sm' }, f.tok(peak)),
 					h('td', { className: 'tdb-share-cell' },
 						h('span', { className: 'tdb-share-track' },
@@ -1649,7 +1672,8 @@ window.__ModuleLoader__.load({
 						h('th', { scope: 'col' }, f.t('colChannel')),
 						h('th', { scope: 'col', className: 'num' }, f.t('colUsage')),
 						h('th', { scope: 'col', className: 'num hide-sm' }, f.t('colAvg')),
-						h('th', { scope: 'col', className: 'num hide-sm' }, f.t('colPeak')),
+						h('th', { scope: 'col', className: 'num hide-sm' }, f.t('colQuickest')),
+					h('th', { scope: 'col', className: 'num hide-sm' }, f.t('colPeak')),
 						h('th', { scope: 'col', className: 'tdb-share-col' }, f.t('colShare')))),
 					h('tbody', null, rows)))
 		}

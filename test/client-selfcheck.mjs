@@ -149,8 +149,8 @@ function fixtureSnapshot() {
 			{ day: '2026-10-22', total: 640000, providers: { deepseek: 400000, 'opencode-go': 240000 }, sessions: { s1: 400000, s3: 240000 } },
 		],
 		providers: [
-			{ id: 'deepseek', name: 'DeepSeek', configured: true, seenInLogs: true, total: 2490000, firstDay: '2026-01-05', lastDay: '2026-10-22', peak: { day: '2026-10-21', tokens: 900000 }, sessionCount: 3 },
-			{ id: 'opencode-go', name: 'opencode-go', configured: false, seenInLogs: true, total: 800000, firstDay: '2026-01-05', lastDay: '2026-10-22', peak: { day: '2026-10-21', tokens: 350000 }, sessionCount: 2 },
+			{ id: 'deepseek', name: 'DeepSeek', configured: true, seenInLogs: true, total: 2490000, firstDay: '2026-01-05', lastDay: '2026-10-22', peak: { day: '2026-10-21', tokens: 900000 }, sessionCount: 3, decodeMs: 60000, outputTokens: 12000, tokensPerSecond: 200 },
+			{ id: 'opencode-go', name: 'opencode-go', configured: false, seenInLogs: true, total: 800000, firstDay: '2026-01-05', lastDay: '2026-10-22', peak: { day: '2026-10-21', tokens: 350000 }, sessionCount: 2, decodeMs: 0, outputTokens: 0, tokensPerSecond: null },
 			{ id: 'unused-route', name: 'unused-route', configured: true, seenInLogs: false, total: 0, firstDay: null, lastDay: null, peak: null, sessionCount: 0 },
 		],
 		sessions: [
@@ -551,6 +551,24 @@ assert.equal(tableRows.length, 4, 'header row + 3 provider rows')
 assert.ok(present(data.host, 'tdb-unused'), 'configured-but-unused provider is marked')
 assert.ok(present(data.host, 'tdb-share-track'))
 ok('provider table: header + 3 rows, share bars, unused marker')
+
+// Average streaming speed is a provider-level figure: shown where the logs were
+// timed, an em dash where they were not (never a made-up zero).
+assert.ok(data.text.includes('平均输出速度'), 'speed column header rendered')
+assert.ok(data.text.includes('200.0 tok/s'), 'measured route prints its tok/s')
+assert.ok(data.text.includes('—'), 'untimed route prints a dash')
+const speedHeaderIndex = data.text.indexOf('平均输出速度')
+assert.ok(speedHeaderIndex > -1, 'speed header present in the rendered table')
+ok('provider speed column: measured route in tok/s, untimed route as a dash')
+
+// Every provider-table header must resolve through the dictionary: a missing
+// key renders as its own name ("colPeak"), which is how a dropped entry shows up.
+const headers = ['渠道', '用量', '日均', '单日峰值', '占比']
+for (const label of headers) {
+  assert.ok(data.text.includes(label), 'provider table header resolves: ' + label)
+}
+assert.ok(!/col[A-Z]/.test(data.text), 'no raw dictionary key leaked into the table')
+ok('provider table headers all resolve through the dictionary')
 
 assert.equal(countClass(data.host, 'tdb-sess-row'), 3, 'one row per session with usage (4 fixtures, 1 empty)')
 assert.ok(!data.text.includes('助理会话（无消耗）'), 'zero-usage session is not listed')

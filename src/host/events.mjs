@@ -41,6 +41,8 @@ import { localDay, localHour } from './time.mjs'
  * @property {number} total                    four buckets summed
  * @property {{input: number, output: number, cacheRead: number, cacheWrite: number}} usage
  * @property {Record<string, number>} providerTotals  provider id -> tokens
+ * @property {Record<string, number>} providerDecodeMs   provider id -> sum of time-to-last-token spans
+ * @property {Record<string, number>} providerOutputTokens provider id -> output tokens of timed messages
  * @property {string[]} providersSeen           every provider id attributed at least once
  * @property {Record<string, number>} byDay     day -> tokens (>0 only)
  * @property {Record<string, Record<string, number>>} dayProviders  day -> provider -> tokens
@@ -105,6 +107,8 @@ export function foldSession(events, options = {}) {
     total: 0,
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     providerTotals: {},
+    providerDecodeMs: {},
+    providerOutputTokens: {},
     providersSeen: [],
     byDay: {},
     dayProviders: {},
@@ -130,6 +134,10 @@ export function foldSession(events, options = {}) {
   const hoursByDay = new Map()
   /** @type {Map<string, number>} */
   const providerTotals = new Map()
+  /** @type {Map<string, number>} provider -> decode milliseconds */
+  const providerDecodeMs = new Map()
+  /** @type {Map<string, number>} provider -> output tokens of messages that had a start time */
+  const providerOutputTokens = new Map()
   /** @type {Set<string>} */
   const providersSeen = new Set()
   /** @type {Set<string>} */
@@ -139,6 +147,8 @@ export function foldSession(events, options = {}) {
 
   let currentProvider = null
   let head = null
+  /** @type {{ turn: number | null, step: number | null, startTime: number } | null} */
+  let openStep = null
 
   for (const event of events) {
     if (event === null || typeof event !== 'object' || Array.isArray(event)) {
@@ -218,6 +228,20 @@ export function foldSession(events, options = {}) {
           folded.total += sum
           providerTotals.set(provider, (providerTotals.get(provider) ?? 0) + sum)
 
+          // Decode speed uses the same definition as DSH's sessionStats: the
+          // span from the step's first request to this assembled message, over
+          // its output tokens. That makes the figure comparable with the
+          // tokens-per-second the transcript itself shows.
+          const firstTokenAt = firstTokenTime(data?.stream)
+          const startedAt = openStep !== null && openStep.turn === countOf(data?.turn) && openStep.step === countOf(data?.step)
+            ? openStep.startTime
+            : null
+          const from = firstTokenAt ?? startedAt
+          if (time !== null && from !== null && time > from && output > 0) {
+            providerDecodeMs.set(provider, (providerDecodeMs.get(provider) ?? 0) + (time - from))
+            providerOutputTokens.set(provider, (providerOutputTokens.get(provider) ?? 0) + output)
+          }
+
           if (time !== null && sum > 0) {
             const day = localDay(time)
             const hour = localHour(time)
@@ -245,10 +269,24 @@ export function foldSession(events, options = {}) {
         }
         break
       }
+      case 'step/start': {
+        if (time !== null) {
+          openStep = {
+            turn: countOf(data?.turn),
+            step: countOf(data?.step),
+            startTime: time,
+          }
+        }
+        break
+      }
       case 'turn/start': {
         folded.turns += 1
         const key = turnKey(data?.turn)
         if (key !== null && time !== null) turnStarts.set(key, time)
+        break
+      }
+      case 'step/end': {
+        openStep = null
         break
       }
       case 'turn/end': {
@@ -281,6 +319,8 @@ export function foldSession(events, options = {}) {
   if (folded.createdAt === null && folded.firstAt !== null) folded.createdAt = folded.firstAt
 
   folded.providerTotals = mapToObject(providerTotals)
+  folded.providerDecodeMs = mapToObject(providerDecodeMs)
+  folded.providerOutputTokens = mapToObject(providerOutputTokens)
   folded.providersSeen = [...providersSeen]
   folded.byDay = mapToObject(dayTotals)
   folded.dayProviders = /** @type {Record<string, Record<string, number>>} */ (
@@ -303,6 +343,60 @@ export function foldSessionText(text, options = {}) {
   const folded = foldSession(events, options)
   folded.malformedLines = malformed
   return folded
+}
+
+/**
+ * When the assistant stream produced its first token (epoch ms), or null.
+ *
+ * A log stores either single `chunk` records or packed runs (`text-chunks`,
+ * `reasoning-chunks`, `tool-call-chunks`) that keep the base time in `time0`
+ * and per-fragment deltas in `dt`; both forms appear in the same fleet of
+ * logs. A run's first fragment sits at `time0`, later ones add the deltas that
+ * precede them. This mirrors the Harness' own first-token reader, so the speed
+ * this plugin reports matches what the transcript shows.
+ * @param {unknown} stream
+ * @returns {number | null}
+ */
+export function firstTokenTime(stream) {
+  if (!Array.isArray(stream)) return null
+  for (const record of stream) {
+    if (!isObject(record)) continue
+    if (record.type === 'chunk') {
+      const time = finiteOrNull(record.time)
+      if (time !== null && isTokenChunk(record.chunk)) return time
+      continue
+    }
+    if (record.type === 'tool-call-chunks') {
+      const time = finiteOrNull(record.time0)
+      if (time !== null) return time
+      continue
+    }
+    if (record.type === 'text-chunks' || record.type === 'reasoning-chunks') {
+      const base = finiteOrNull(record.time0)
+      const fragments = Array.isArray(record.texts) ? record.texts : null
+      const deltas = Array.isArray(record.dt) ? record.dt : []
+      if (base === null || fragments === null) continue
+      let at = base
+      for (let index = 0; index < fragments.length; index += 1) {
+        if (index > 0) at += countOf(deltas[index - 1])
+        if (typeof fragments[index] === 'string' && fragments[index] !== '') return at
+      }
+    }
+  }
+  return null
+}
+
+/** A chunk that carries model output rather than control metadata. */
+function isTokenChunk(chunk) {
+  if (!isObject(chunk)) return false
+  if (chunk.type === 'text-delta' || chunk.type === 'reasoning-delta') {
+    return typeof chunk.text === 'string' && chunk.text !== ''
+  }
+  if (chunk.type === 'tool-call-delta') {
+    return (typeof chunk.argumentsDelta === 'string' && chunk.argumentsDelta !== '')
+      || typeof chunk.name === 'string'
+  }
+  return false
 }
 
 /** @param {unknown} value @returns {value is Record<string, any>} */

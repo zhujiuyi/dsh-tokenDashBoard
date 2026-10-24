@@ -1,6 +1,6 @@
 {
   "name": "@zhujiuyi/dsh-token-dashboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "DeepSeek Harness plugin: a Token usage dashboard in the sidebar — daily totals, per-provider routes and per-session consumption, including archived and deleted sessions. · DSH 插件：侧栏 Token 用量看板，按天、供应商渠道与会话统计，含已归档与已删除会话。",
   "type": "module",
